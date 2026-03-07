@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hash160 ↔ Bitcoin Addresses</title>
+  <title>Hash160 ↔ Crypto Addresses</title>
   <style>
     :root {
       --bg: #0d1117;
@@ -202,10 +202,10 @@
       <div id="out"></div>
     </div>
     <div id="panel-to-hash" class="panel">
-      <p class="sub">Enter a Bitcoin address (P2PKH, P2SH, or Bech32) to get its hash160.</p>
-      <label for="addr">Bitcoin address</label>
-      <input type="text" id="addr" placeholder="e.g. 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa or bc1q..." autocomplete="off" spellcheck="false">
-      <p class="hint">Supports legacy (1...), P2SH (3...), and SegWit Bech32 (bc1q..., tb1q...). Only 20-byte hash160 addresses are supported (no Taproot bc1p...).</p>
+      <p class="sub">Enter a Bitcoin or TRON address to get its 20-byte hex id (hash160 / account id).</p>
+      <label for="addr">Address</label>
+      <input type="text" id="addr" placeholder="e.g. 1A1zP1eP5Q... or bc1q... or T..." autocomplete="off" spellcheck="false">
+      <p class="hint">Supports Bitcoin P2PKH (1...), P2SH (3...), Bech32 (bc1q..., tb1q...), and TRON TRX addresses (T...). Only 20-byte payloads are supported.</p>
       <button type="button" id="btnAddr">Get hash160</button>
       <div id="outHash"></div>
     </div>
@@ -429,17 +429,34 @@
           if (ver !== 0) return { error: 'Only witness version 0 (P2WPKH) is supported. Taproot (bc1p...) is not 20-byte hash160.' };
           const prog = convertFrom5Bit(dec.words.slice(1));
           if (prog.length !== 20) return { error: 'Only 20-byte witness program (P2WPKH) is supported.' };
-          return { hash160: bytesToHex(prog) };
+          return { hash160: bytesToHex(prog), tron: false, coin: 'btc' };
         }
         const decoded = await base58CheckDecode(addr);
         if (!decoded) return { error: 'Invalid Base58Check address.' };
-        if (decoded.length !== 21) return { error: 'Address must decode to 21 bytes (version + 20-byte hash160).' };
+        if (decoded.length !== 21) return { error: 'Address must decode to 21 bytes (version + 20-byte body).' };
         const version = decoded[0];
-        const hash = decoded.subarray(1);
-        if (hash.length !== 20) return { error: 'Invalid address length.' };
-        const validVersions = [0x00, 0x6f, 0x05, 0xc4];
-        if (validVersions.indexOf(version) < 0) return { error: 'Unknown address version.' };
-        return { hash160: bytesToHex(hash) };
+        const body = decoded.subarray(1);
+        if (body.length !== 20) return { error: 'Invalid address length.' };
+        if (version === 0x41) {
+          // TRON: 0x41 + 20-byte account id
+          return { hash160: bytesToHex(body), tron: true, coin: 'tron' };
+        }
+        // Bitcoin
+        const btcVersions = [0x00, 0x6f, 0x05, 0xc4];
+        if (btcVersions.indexOf(version) >= 0) {
+          return { hash160: bytesToHex(body), tron: false, coin: 'btc' };
+        }
+        // Litecoin mainnet / testnet P2PKH/P2SH (0x30, 0x32, 0x3a)
+        const ltcVersions = [0x30, 0x32, 0x3a];
+        if (ltcVersions.indexOf(version) >= 0) {
+          return { hash160: bytesToHex(body), tron: false, coin: 'ltc' };
+        }
+        // Dogecoin mainnet / testnet P2PKH/P2SH (0x1e, 0x16, 0x71)
+        const dogeVersions = [0x1e, 0x16, 0x71];
+        if (dogeVersions.indexOf(version) >= 0) {
+          return { hash160: bytesToHex(body), tron: false, coin: 'doge' };
+        }
+        return { error: 'Unknown address version.' };
       }
 
       async function hash160ToAddresses(hash160Hex) {
@@ -448,12 +465,20 @@
         const h = hexToBytes(raw);
         if (!h || h.length !== 20) return { error: 'Invalid hex.' };
 
+        // Bitcoin
         const p2pkhMain = await base58CheckEncode(0x00, h);
         const p2pkhTest = await base58CheckEncode(0x6f, h);
         const p2shMain = await base58CheckEncode(0x05, h);
         const p2shTest = await base58CheckEncode(0xc4, h);
         const bech32Main = bech32Encode('bc', 0, h);
         const bech32Test = bech32Encode('tb', 0, h);
+        // Litecoin (mainnet)
+        const ltcP2pkh = await base58CheckEncode(0x30, h);
+        const ltcP2sh = await base58CheckEncode(0x32, h);
+        // Dogecoin (mainnet)
+        const dogeP2pkh = await base58CheckEncode(0x1e, h);
+        const dogeP2sh = await base58CheckEncode(0x16, h);
+        // TRON (mainnet)
         const tronAddr = await tronAddressFrom20Bytes(h);
 
         return {
@@ -466,6 +491,14 @@
             p2pkh: p2pkhTest,
             p2sh: p2shTest,
             bech32: bech32Test
+          },
+          litecoin: {
+            p2pkh: ltcP2pkh,
+            p2sh: ltcP2sh
+          },
+          dogecoin: {
+            p2pkh: dogeP2pkh,
+            p2sh: dogeP2sh
           },
           tron: { address: tronAddr }
         };
@@ -556,16 +589,32 @@
       function tronAddrLink(addr) { return '<a href="' + TRONSCAN_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function addressBlocksHtml(result) {
         let html = '';
-        html += '<div class="section"><h2>Mainnet</h2>';
+        // Bitcoin
+        html += '<div class="section"><h2>Bitcoin Mainnet</h2>';
         html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + addrLink(result.mainnet.p2pkh) + '</span>' + copyBtn(result.mainnet.p2pkh) + '</div>';
         html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + addrLink(result.mainnet.p2sh) + '</span>' + copyBtn(result.mainnet.p2sh) + '</div>';
         html += '<div class="row"><span class="tag mainnet">Bech32</span><span class="addr">' + addrLink(result.mainnet.bech32) + '</span>' + copyBtn(result.mainnet.bech32) + '</div>';
         html += '</div>';
-        html += '<div class="section"><h2>Testnet</h2>';
+        html += '<div class="section"><h2>Bitcoin Testnet</h2>';
         html += '<div class="row"><span class="tag testnet">P2PKH</span><span class="addr">' + addrLink(result.testnet.p2pkh) + '</span>' + copyBtn(result.testnet.p2pkh) + '</div>';
         html += '<div class="row"><span class="tag testnet">P2SH</span><span class="addr">' + addrLink(result.testnet.p2sh) + '</span>' + copyBtn(result.testnet.p2sh) + '</div>';
         html += '<div class="row"><span class="tag testnet">Bech32</span><span class="addr">' + addrLink(result.testnet.bech32) + '</span>' + copyBtn(result.testnet.bech32) + '</div>';
         html += '</div>';
+        // Litecoin
+        if (result.litecoin) {
+          html += '<div class="section"><h2>Litecoin</h2>';
+          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + escapeHtml(result.litecoin.p2pkh) + '</span>' + copyBtn(result.litecoin.p2pkh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + escapeHtml(result.litecoin.p2sh) + '</span>' + copyBtn(result.litecoin.p2sh) + '</div>';
+          html += '</div>';
+        }
+        // Dogecoin
+        if (result.dogecoin) {
+          html += '<div class="section"><h2>Dogecoin</h2>';
+          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + escapeHtml(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + escapeHtml(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>';
+          html += '</div>';
+        }
+        // TRON
         if (result.tron && result.tron.address) {
           html += '<div class="section"><h2>TRON</h2>';
           html += '<div class="row"><span class="tag mainnet">TRX</span><span class="addr">' + tronAddrLink(result.tron.address) + '</span>' + copyBtn(result.tron.address) + '</div>';
@@ -619,8 +668,11 @@
         }
         addrInput.classList.remove('error');
         var addr = addrInput.value.trim();
+        var isTron = !!result.tron;
+        var base = isTron ? TRONSCAN_BASE : EXPLORER_BASE;
+        var label = isTron ? 'Address on Tronscan' : 'Address on explorer';
         outHash.innerHTML = '<div class="section"><h2>Hash160</h2><div class="hash160-wrap"><div class="hash160-out">' + escapeHtml(result.hash160) + '</div>' + copyBtn(result.hash160) + '</div>' +
-          (addr ? '<p class="hint" style="margin-top:0.75rem">Address on explorer: <a href="' + EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer" style="color:var(--green)">' + escapeHtml(addr) + '</a> ' + copyBtn(addr) + '</p>' : '') + '</div>';
+          (addr ? '<p class="hint" style="margin-top:0.75rem">' + label + ': <a href="' + base + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer" style="color:var(--green)">' + escapeHtml(addr) + '</a> ' + copyBtn(addr) + '</p>' : '') + '</div>';
       }
 
       btnAddr.addEventListener('click', async function () {

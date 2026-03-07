@@ -25,13 +25,14 @@ A web tool for converting between Bitcoin formats (hash160, addresses, private/p
 
 ### 2. Address → Hash160
 
-**Input:** A single Bitcoin address in any supported format (P2PKH, P2SH, or Bech32).
+**Input:** A single Bitcoin or TRON address.
 
 **What it does:**
 - **Bech32** (`bc1q...`, `tb1q...`): Decode Bech32 → HRP + witness version + data; verify checksum (polymod). Only witness version 0 and 20-byte program (P2WPKH) are supported. Hash160 = those 20 bytes.
-- **Base58Check** (`1...`, `3...`, `m...`, `2...`): Decode Base58 → payload; verify checksum (double SHA-256, last 4 bytes). First byte is version (0x00, 0x6f, 0x05, 0xc4); remaining 20 bytes are hash160.
+- **Bitcoin Base58Check** (`1...`, `3...`, `m...`, `2...`): Decode Base58 → payload; verify checksum (double SHA-256, last 4 bytes). First byte is version (0x00, 0x6f, 0x05, 0xc4); remaining 20 bytes are hash160.
+- **TRON Base58Check** (`T...`): Decode Base58 → payload; verify checksum; version byte `0x41` + 20-byte account id. Those 20 bytes are returned as hex (TRON account id).
 
-**Output:** One hash160 in hex (40 characters), Copy button, and a link to the explorer for the entered address.
+**Output:** One 20-byte hex string (hash160 / account id) with Copy button and an explorer link (Blockchain.com for Bitcoin, Tronscan for TRON).
 
 ---
 
