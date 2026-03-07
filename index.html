@@ -584,9 +584,13 @@
 
       var EXPLORER_BASE = 'https://www.blockchain.com/explorer/addresses/btc/';
       var TRONSCAN_BASE = 'https://tronscan.org/#/address/';
+      var LTC_EXPLORER_BASE = 'https://getblock.net/ltc/address/';
+      var DOGE_EXPLORER_BASE = 'https://getblock.net/doge/address/';
       function copyBtn(text) { return '<button type="button" class="btn-copy" data-copy="' + escapeHtml(text) + '" title="Copy">Copy</button>'; }
       function addrLink(addr) { return '<a href="' + EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function tronAddrLink(addr) { return '<a href="' + TRONSCAN_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
+      function ltcAddrLink(addr) { return '<a href="' + LTC_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
+      function dogeAddrLink(addr) { return '<a href="' + DOGE_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function addressBlocksHtml(result) {
         let html = '';
         // Bitcoin
@@ -603,15 +607,15 @@
         // Litecoin
         if (result.litecoin) {
           html += '<div class="section"><h2>Litecoin</h2>';
-          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + escapeHtml(result.litecoin.p2pkh) + '</span>' + copyBtn(result.litecoin.p2pkh) + '</div>';
-          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + escapeHtml(result.litecoin.p2sh) + '</span>' + copyBtn(result.litecoin.p2sh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2pkh) + '</span>' + copyBtn(result.litecoin.p2pkh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2sh) + '</span>' + copyBtn(result.litecoin.p2sh) + '</div>';
           html += '</div>';
         }
         // Dogecoin
         if (result.dogecoin) {
           html += '<div class="section"><h2>Dogecoin</h2>';
-          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + escapeHtml(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>';
-          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + escapeHtml(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>';
           html += '</div>';
         }
         // TRON
@@ -668,9 +672,19 @@
         }
         addrInput.classList.remove('error');
         var addr = addrInput.value.trim();
-        var isTron = !!result.tron;
-        var base = isTron ? TRONSCAN_BASE : EXPLORER_BASE;
-        var label = isTron ? 'Address on Tronscan' : 'Address on explorer';
+        var coin = result.coin || (result.tron ? 'tron' : 'btc');
+        var base = EXPLORER_BASE;
+        var label = 'Address on explorer';
+        if (coin === 'tron') {
+          base = TRONSCAN_BASE;
+          label = 'Address on Tronscan';
+        } else if (coin === 'ltc') {
+          base = LTC_EXPLORER_BASE;
+          label = 'Address on Litecoin explorer';
+        } else if (coin === 'doge') {
+          base = DOGE_EXPLORER_BASE;
+          label = 'Address on Dogecoin explorer';
+        }
         outHash.innerHTML = '<div class="section"><h2>Hash160</h2><div class="hash160-wrap"><div class="hash160-out">' + escapeHtml(result.hash160) + '</div>' + copyBtn(result.hash160) + '</div>' +
           (addr ? '<p class="hint" style="margin-top:0.75rem">' + label + ': <a href="' + base + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer" style="color:var(--green)">' + escapeHtml(addr) + '</a> ' + copyBtn(addr) + '</p>' : '') + '</div>';
       }
