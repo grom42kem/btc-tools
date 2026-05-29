@@ -205,7 +205,7 @@
       <p class="sub">Enter a Bitcoin or TRON address to get its 20-byte hex id (hash160 / account id).</p>
       <label for="addr">Address</label>
       <input type="text" id="addr" placeholder="e.g. 1A1zP1eP5Q... or bc1q... or T..." autocomplete="off" spellcheck="false">
-      <p class="hint">Supports Bitcoin P2PKH (1...), P2SH (3...), Bech32 (bc1q..., tb1q...), and TRON TRX addresses (T...). Only 20-byte payloads are supported.</p>
+      <p class="hint">Supports Bitcoin, Litecoin (L/M), Dogecoin (D), Dash (X), TRON (T), and Bech32. Only 20-byte payloads are supported.</p>
       <button type="button" id="btnAddr">Get hash160</button>
       <div id="outHash"></div>
     </div>
@@ -456,6 +456,11 @@
         if (dogeVersions.indexOf(version) >= 0) {
           return { hash160: bytesToHex(body), tron: false, coin: 'doge' };
         }
+        // Dash mainnet / testnet P2PKH/P2SH (0x4c, 0x10, 0x8c, 0x13)
+        const dashVersions = [0x4c, 0x10, 0x8c, 0x13];
+        if (dashVersions.indexOf(version) >= 0) {
+          return { hash160: bytesToHex(body), tron: false, coin: 'dash' };
+        }
         return { error: 'Unknown address version.' };
       }
 
@@ -478,6 +483,9 @@
         // Dogecoin (mainnet)
         const dogeP2pkh = await base58CheckEncode(0x1e, h);
         const dogeP2sh = await base58CheckEncode(0x16, h);
+        // Dash (mainnet)
+        const dashP2pkh = await base58CheckEncode(0x4c, h);
+        const dashP2sh = await base58CheckEncode(0x10, h);
         // TRON (mainnet)
         const tronAddr = await tronAddressFrom20Bytes(h);
 
@@ -499,6 +507,10 @@
           dogecoin: {
             p2pkh: dogeP2pkh,
             p2sh: dogeP2sh
+          },
+          dash: {
+            p2pkh: dashP2pkh,
+            p2sh: dashP2sh
           },
           tron: { address: tronAddr }
         };
@@ -582,15 +594,17 @@
         });
       });
 
-      var EXPLORER_BASE = 'https://www.blockchain.com/explorer/addresses/btc/';
+      var EXPLORER_BASE = 'https://blockchair.com/bitcoin/address';
       var TRONSCAN_BASE = 'https://tronscan.org/#/address/';
       var LTC_EXPLORER_BASE = 'https://getblock.net/ltc/address/';
       var DOGE_EXPLORER_BASE = 'https://getblock.net/doge/address/';
+      var DASH_EXPLORER_BASE = 'https://blockchair.com/dash/address/';
       function copyBtn(text) { return '<button type="button" class="btn-copy" data-copy="' + escapeHtml(text) + '" title="Copy">Copy</button>'; }
       function addrLink(addr) { return '<a href="' + EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function tronAddrLink(addr) { return '<a href="' + TRONSCAN_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function ltcAddrLink(addr) { return '<a href="' + LTC_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function dogeAddrLink(addr) { return '<a href="' + DOGE_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
+      function dashAddrLink(addr) { return '<a href="' + DASH_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function addressBlocksHtml(result) {
         let html = '';
         // Bitcoin
@@ -616,6 +630,12 @@
           html += '<div class="section"><h2>Dogecoin</h2>';
           html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>';
           html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>';
+          html += '</div>';
+        }
+        if (result.dash) {
+          html += '<div class="section"><h2>Dash</h2>';
+          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dashAddrLink(result.dash.p2pkh) + '</span>' + copyBtn(result.dash.p2pkh) + '</div>';
+          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dashAddrLink(result.dash.p2sh) + '</span>' + copyBtn(result.dash.p2sh) + '</div>';
           html += '</div>';
         }
         // TRON
@@ -684,6 +704,9 @@
         } else if (coin === 'doge') {
           base = DOGE_EXPLORER_BASE;
           label = 'Address on Dogecoin explorer';
+        } else if (coin === 'dash') {
+          base = DASH_EXPLORER_BASE;
+          label = 'Address on Blockchair (Dash)';
         }
         outHash.innerHTML = '<div class="section"><h2>Hash160</h2><div class="hash160-wrap"><div class="hash160-out">' + escapeHtml(result.hash160) + '</div>' + copyBtn(result.hash160) + '</div>' +
           (addr ? '<p class="hint" style="margin-top:0.75rem">' + label + ': <a href="' + base + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer" style="color:var(--green)">' + escapeHtml(addr) + '</a> ' + copyBtn(addr) + '</p>' : '') + '</div>';

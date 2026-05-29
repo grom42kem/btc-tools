@@ -17,22 +17,29 @@ A web tool for converting between Bitcoin formats (hash160, addresses, private/p
   - **P2PKH** (Pay to Public Key Hash) — Legacy, prefix `1` (mainnet) or `m/n` (testnet). Base58Check encoding: version 0x00 (mainnet) or 0x6f (testnet) + 20-byte hash160.
   - **P2SH** (Pay to Script Hash) — prefix `3` (mainnet) or `2` (testnet). Base58Check, version 0x05 (mainnet) or 0xc4 (testnet) + same 20-byte hash160.
   - **Bech32** (SegWit P2WPKH) — prefix `bc1q` (mainnet) or `tb1q` (testnet). Bech32 encoding (BIP 173): HRP `bc`/`tb`, witness version 0, 20-byte witness program.
-- TRON address (TRX): the same 20 bytes are used as the account id, prefixed with `0x41`, then Base58Check-encoded and linked to Tronscan.
+- **Litecoin** (mainnet): P2PKH `0x30` (`L...`), P2SH `0x32` (`M...`) — [GetBlock](https://getblock.net/ltc/address/).
+- **Dogecoin** (mainnet): P2PKH `0x1e` (`D...`), P2SH `0x16` — [GetBlock](https://getblock.net/doge/address/).
+- **Dash** (mainnet): P2PKH `0x4c` (`X...`), P2SH `0x10` — [Blockchair](https://blockchair.com/dash/address/).
+- **TRON** (TRX): same 20 bytes prefixed with `0x41`, Base58Check — [Tronscan](https://tronscan.org/#/address/).
 
-**Output:** Six Bitcoin addresses (3 mainnet, 3 testnet) plus a TRON (TRX) address, all with explorer links and Copy buttons.
+**Output:** Bitcoin (mainnet + testnet), Litecoin, Dogecoin, Dash, and TRON addresses, all with explorer links and Copy buttons.
 
 ---
 
 ### 2. Address → Hash160
 
-**Input:** A single Bitcoin or TRON address.
+**Input:** A single address (Bitcoin, Litecoin, Dogecoin, Dash, TRON, or Bech32).
 
 **What it does:**
 - **Bech32** (`bc1q...`, `tb1q...`): Decode Bech32 → HRP + witness version + data; verify checksum (polymod). Only witness version 0 and 20-byte program (P2WPKH) are supported. Hash160 = those 20 bytes.
-- **Bitcoin Base58Check** (`1...`, `3...`, `m...`, `2...`): Decode Base58 → payload; verify checksum (double SHA-256, last 4 bytes). First byte is version (0x00, 0x6f, 0x05, 0xc4); remaining 20 bytes are hash160.
-- **TRON Base58Check** (`T...`): Decode Base58 → payload; verify checksum; version byte `0x41` + 20-byte account id. Those 20 bytes are returned as hex (TRON account id).
+- **Base58Check**: Decode Base58 → payload; verify checksum (double SHA-256, last 4 bytes). Version byte identifies the chain; remaining 20 bytes are hash160 / account id:
+  - Bitcoin: `0x00`, `0x6f`, `0x05`, `0xc4`
+  - Litecoin: `0x30`, `0x32`, `0x3a`
+  - Dogecoin: `0x1e`, `0x16`, `0x71`
+  - Dash: `0x4c`, `0x10`, `0x8c`, `0x13`
+  - TRON: `0x41`
 
-**Output:** One 20-byte hex string (hash160 / account id) with Copy button and an explorer link (Blockchain.com for Bitcoin, Tronscan for TRON).
+**Output:** One 20-byte hex string with Copy button and a chain-specific explorer link.
 
 ---
 
@@ -91,6 +98,8 @@ All computation runs locally in the browser; keys and addresses are never sent a
   `https://www.blockchain.com/explorer/addresses/btc/{address}`
 - TRON addresses link to Tronscan as:  
   `https://tronscan.org/#/address/{address}`
+- Litecoin / Dogecoin: GetBlock (`https://getblock.net/ltc/address/{address}`, `https://getblock.net/doge/address/{address}`)
+- Dash: Blockchair `https://blockchair.com/dash/address/{address}`
 
 ---
 
