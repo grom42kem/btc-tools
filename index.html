@@ -182,6 +182,35 @@
       flex-wrap: wrap;
     }
     .hash160-wrap .hash160-out { flex: 1; min-width: 0; }
+    .coin-section-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0 0 0.75rem 0;
+      cursor: pointer;
+      color: inherit;
+      text-align: left;
+      font-family: inherit;
+    }
+    .coin-section-toggle h2 {
+      margin: 0;
+      flex: 1;
+    }
+    .coin-chevron {
+      font-size: 0.625rem;
+      color: var(--muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      width: 1rem;
+      text-align: center;
+    }
+    .coin-section.collapsed .coin-chevron { transform: rotate(-90deg); }
+    .coin-section.collapsed .coin-section-body { display: none; }
+    .coin-section.collapsed .coin-section-toggle { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -196,8 +225,8 @@
     <div id="panel-to-addr" class="panel active">
       <p class="sub">Enter a 20-byte hash160 (40 hex characters) to get all possible address formats.</p>
       <label for="hash">Hash160 (hex)</label>
-      <input type="text" id="hash" placeholder="e.g. 751e76e8199196d454941c45d1b3a323f1433bd6" autocomplete="off" spellcheck="false">
-      <p class="hint">40 characters 0-9, a-f (no 0x). The same hash160 can be represented as P2PKH (1...), P2SH (3...), and Bech32 (bc1q...).</p>
+      <input type="text" id="hash" placeholder="e.g. 751e76e8199196d454941c45d1b3a323f1433bd6 or 0x751e76e8199196d454941c45d1b3a323f1433bd6" autocomplete="off" spellcheck="false">
+      <p class="hint">40 characters 0-9, a-f. Click a coin name to collapse or expand its section; your choice is remembered.</p>
       <button type="button" id="btn">Show addresses</button>
       <div id="out"></div>
     </div>
@@ -605,44 +634,61 @@
       function ltcAddrLink(addr) { return '<a href="' + LTC_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function dogeAddrLink(addr) { return '<a href="' + DOGE_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
       function dashAddrLink(addr) { return '<a href="' + DASH_EXPLORER_BASE + escapeHtml(addr) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(addr) + '</a>'; }
+
+      var COLLAPSED_STORAGE_KEY = 'btc-tools-collapsed-coins';
+      function loadCollapsedCoins() {
+        try {
+          var raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
+      }
+      function saveCollapsedCoins(state) {
+        try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+      }
+      function coinSection(id, title, bodyHtml, collapsedState) {
+        var collapsed = !!collapsedState[id];
+        var cls = 'section coin-section' + (collapsed ? ' collapsed' : '');
+        return '<div class="' + cls + '" data-coin-id="' + escapeHtml(id) + '">' +
+          '<button type="button" class="coin-section-toggle" aria-expanded="' + (!collapsed) + '">' +
+          '<span class="coin-chevron" aria-hidden="true">▼</span><h2>' + escapeHtml(title) + '</h2></button>' +
+          '<div class="coin-section-body">' + bodyHtml + '</div></div>';
+      }
+
       function addressBlocksHtml(result) {
+        var collapsedState = loadCollapsedCoins();
         let html = '';
-        // Bitcoin
-        html += '<div class="section"><h2>Bitcoin Mainnet</h2>';
-        html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + addrLink(result.mainnet.p2pkh) + '</span>' + copyBtn(result.mainnet.p2pkh) + '</div>';
-        html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + addrLink(result.mainnet.p2sh) + '</span>' + copyBtn(result.mainnet.p2sh) + '</div>';
-        html += '<div class="row"><span class="tag mainnet">Bech32</span><span class="addr">' + addrLink(result.mainnet.bech32) + '</span>' + copyBtn(result.mainnet.bech32) + '</div>';
-        html += '</div>';
-        html += '<div class="section"><h2>Bitcoin Testnet</h2>';
-        html += '<div class="row"><span class="tag testnet">P2PKH</span><span class="addr">' + addrLink(result.testnet.p2pkh) + '</span>' + copyBtn(result.testnet.p2pkh) + '</div>';
-        html += '<div class="row"><span class="tag testnet">P2SH</span><span class="addr">' + addrLink(result.testnet.p2sh) + '</span>' + copyBtn(result.testnet.p2sh) + '</div>';
-        html += '<div class="row"><span class="tag testnet">Bech32</span><span class="addr">' + addrLink(result.testnet.bech32) + '</span>' + copyBtn(result.testnet.bech32) + '</div>';
-        html += '</div>';
-        // Litecoin
+        html += coinSection('btc-mainnet', 'Bitcoin Mainnet',
+          '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + addrLink(result.mainnet.p2pkh) + '</span>' + copyBtn(result.mainnet.p2pkh) + '</div>' +
+          '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + addrLink(result.mainnet.p2sh) + '</span>' + copyBtn(result.mainnet.p2sh) + '</div>' +
+          '<div class="row"><span class="tag mainnet">Bech32</span><span class="addr">' + addrLink(result.mainnet.bech32) + '</span>' + copyBtn(result.mainnet.bech32) + '</div>',
+          collapsedState);
+        html += coinSection('btc-testnet', 'Bitcoin Testnet',
+          '<div class="row"><span class="tag testnet">P2PKH</span><span class="addr">' + addrLink(result.testnet.p2pkh) + '</span>' + copyBtn(result.testnet.p2pkh) + '</div>' +
+          '<div class="row"><span class="tag testnet">P2SH</span><span class="addr">' + addrLink(result.testnet.p2sh) + '</span>' + copyBtn(result.testnet.p2sh) + '</div>' +
+          '<div class="row"><span class="tag testnet">Bech32</span><span class="addr">' + addrLink(result.testnet.bech32) + '</span>' + copyBtn(result.testnet.bech32) + '</div>',
+          collapsedState);
         if (result.litecoin) {
-          html += '<div class="section"><h2>Litecoin</h2>';
-          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2pkh) + '</span>' + copyBtn(result.litecoin.p2pkh) + '</div>';
-          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2sh) + '</span>' + copyBtn(result.litecoin.p2sh) + '</div>';
-          html += '</div>';
+          html += coinSection('litecoin', 'Litecoin',
+            '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2pkh) + '</span>' + copyBtn(result.litecoin.p2pkh) + '</div>' +
+            '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + ltcAddrLink(result.litecoin.p2sh) + '</span>' + copyBtn(result.litecoin.p2sh) + '</div>',
+            collapsedState);
         }
-        // Dogecoin
         if (result.dogecoin) {
-          html += '<div class="section"><h2>Dogecoin</h2>';
-          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>';
-          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>';
-          html += '</div>';
+          html += coinSection('dogecoin', 'Dogecoin',
+            '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2pkh) + '</span>' + copyBtn(result.dogecoin.p2pkh) + '</div>' +
+            '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dogeAddrLink(result.dogecoin.p2sh) + '</span>' + copyBtn(result.dogecoin.p2sh) + '</div>',
+            collapsedState);
         }
         if (result.dash) {
-          html += '<div class="section"><h2>Dash</h2>';
-          html += '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dashAddrLink(result.dash.p2pkh) + '</span>' + copyBtn(result.dash.p2pkh) + '</div>';
-          html += '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dashAddrLink(result.dash.p2sh) + '</span>' + copyBtn(result.dash.p2sh) + '</div>';
-          html += '</div>';
+          html += coinSection('dash', 'Dash',
+            '<div class="row"><span class="tag mainnet">P2PKH</span><span class="addr">' + dashAddrLink(result.dash.p2pkh) + '</span>' + copyBtn(result.dash.p2pkh) + '</div>' +
+            '<div class="row"><span class="tag mainnet">P2SH</span><span class="addr">' + dashAddrLink(result.dash.p2sh) + '</span>' + copyBtn(result.dash.p2sh) + '</div>',
+            collapsedState);
         }
-        // TRON
         if (result.tron && result.tron.address) {
-          html += '<div class="section"><h2>TRON</h2>';
-          html += '<div class="row"><span class="tag mainnet">TRX</span><span class="addr">' + tronAddrLink(result.tron.address) + '</span>' + copyBtn(result.tron.address) + '</div>';
-          html += '</div>';
+          html += coinSection('tron', 'TRON',
+            '<div class="row"><span class="tag mainnet">TRX</span><span class="addr">' + tronAddrLink(result.tron.address) + '</span>' + copyBtn(result.tron.address) + '</div>',
+            collapsedState);
         }
         return html;
       }
@@ -662,7 +708,7 @@
 
       btn.addEventListener('click', async function () {
         input.classList.remove('error');
-        const val = input.value.trim();
+        const val = input.value.trim().replace('0x', '');
         if (!val) {
           out.innerHTML = '<div class="section"><p class="err">Enter a hash160.</p></div>';
           input.classList.add('error');
@@ -794,6 +840,20 @@
       });
 
       document.body.addEventListener('click', async function (e) {
+        var toggle = e.target.closest('.coin-section-toggle');
+        if (toggle) {
+          var section = toggle.closest('.coin-section');
+          if (!section) return;
+          var id = section.getAttribute('data-coin-id');
+          section.classList.toggle('collapsed');
+          var isCollapsed = section.classList.contains('collapsed');
+          toggle.setAttribute('aria-expanded', String(!isCollapsed));
+          var state = loadCollapsedCoins();
+          if (isCollapsed) state[id] = true;
+          else delete state[id];
+          saveCollapsedCoins(state);
+          return;
+        }
         var btn = e.target.closest('.btn-copy');
         if (!btn) return;
         var text = btn.getAttribute('data-copy');
